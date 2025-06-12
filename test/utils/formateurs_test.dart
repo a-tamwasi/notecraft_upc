@@ -1,7 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:notecraft_upc/src/utils/formateurs.dart';
 
 void main() {
+  // Initialise les données de localisation pour les tests
+  setUpAll(() => initializeDateFormatting('fr_FR', null));
+
   group('Formateurs', () {
     group('formaterDuree', () {
       test('devrait formater correctement les secondes', () {
@@ -24,6 +28,22 @@ void main() {
 
       test('devrait gérer les valeurs négatives', () {
         expect(Formateurs.formaterDuree(-10), '00:00');
+      });
+    });
+
+    group('Dates', () {
+      final dateTest = DateTime(2024, 5, 27, 14, 30);
+
+      test('formaterDateCourte devrait retourner le bon format', () {
+        expect(Formateurs.formaterDateCourte(dateTest), '27/05/2024 14:30');
+      });
+
+      test('formaterDateLongue devrait retourner le bon format', () {
+        // Le format peut varier légèrement (Lundi vs lundi), on met en minuscule pour fiabiliser
+        expect(
+          Formateurs.formaterDateLongue(dateTest).toLowerCase(),
+          'lundi 27 mai 2024',
+        );
       });
     });
 
