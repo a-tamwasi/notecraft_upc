@@ -1,17 +1,38 @@
-/// Modèle représentant une astuce pour l'utilisateur.
-class AstuceModel {
-  /// Le titre de l'astuce (ex: "Astuce de la semaine").
+import 'package:flutter/foundation.dart';
+
+/// Represents a single tip (astuce) entity.
+/// This class is immutable.
+@immutable
+class Astuce {
+  final int? id;
   final String titre;
-
-  /// Le contenu textuel de l'astuce.
   final String contenu;
+  final String imageUrl;
 
-  /// Le chemin vers l'image de fond de la carte.
-  final String cheminImage;
-
-  AstuceModel({
+  const Astuce({
+    this.id,
     required this.titre,
     required this.contenu,
-    required this.cheminImage,
+    required this.imageUrl,
   });
+
+  /// Converts an [Astuce] instance into a `Map` that can be stored in the database.
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'titre': titre,
+      'contenu': contenu,
+      'imageUrl': imageUrl,
+    };
+  }
+
+  /// Creates an [Astuce] instance from a `Map` retrieved from the database.
+  factory Astuce.fromMap(Map<String, dynamic> map) {
+    return Astuce(
+      id: map['id'] as int?,
+      titre: map['titre'] as String,
+      contenu: map['contenu'] as String,
+      imageUrl: map['imageUrl'] as String,
+    );
+  }
 } 

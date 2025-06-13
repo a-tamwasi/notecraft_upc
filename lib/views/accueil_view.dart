@@ -1,11 +1,11 @@
 import 'dart:ui'; // Importe les classes pour les effets de rendu comme le flou
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:notecraft_upc/views/pages/abonnement_page.dart';
-import 'package:notecraft_upc/views/pages/accueil_page.dart';
-import 'package:notecraft_upc/views/pages/historique_page.dart';
-import 'package:notecraft_upc/views/pages/transcription_page.dart';
-import 'parametres_view.dart';
+import 'package:notecraft_upc/views/pages/page_abonnement.dart';
+import 'package:notecraft_upc/views/pages/page_accueil.dart';
+import 'package:notecraft_upc/views/pages/page_historique.dart';
+import 'package:notecraft_upc/views/pages/page_transcription.dart';
+import 'vue_parametres.dart';
 
 /// Vue principale contenant la navigation par onglets
 class AccueilView extends StatefulWidget {
@@ -24,13 +24,13 @@ class _AccueilViewState extends State<AccueilView> {
   void initState() {
     super.initState();
     _pages = <Widget>[
-      AccueilPage(
-        onNavigateToTranscription: () => _onItemTapped(1),
-        onNavigateToAbonnement: () => _onItemTapped(3),
+      PageAccueil(
+        onNaviguerVersTranscription: () => _onItemTapped(1),
+        onNaviguerVersAbonnement: () => _onItemTapped(3),
       ),
-      const TranscriptionPage(),
-      const HistoriquePage(),
-      const AbonnementPage(),
+      const PageTranscription(),
+      const PageHistorique(),
+      const PageAbonnement(),
     ];
   }
 
@@ -59,7 +59,7 @@ class _AccueilViewState extends State<AccueilView> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const ParametresView()),
+                MaterialPageRoute(builder: (context) => const VueParametres()),
               );
             },
             tooltip: 'Ouvrir les paramètres',

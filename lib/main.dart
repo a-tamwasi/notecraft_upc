@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'src/constants/couleurs_application.dart';
-import 'views/accueil_view.dart';
+import 'views/vue_accueil.dart';
 
-void main() {
-  // Initialise les données de localisation pour le formatage des dates
-  initializeDateFormatting('fr_FR', null).then((_) {
-    runApp(const NoteCraftApp());
-  });
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await dotenv.load(fileName: ".env");
+  
+  await initializeDateFormatting('fr_FR', null);
+  
+  runApp(const NoteCraftApp());
 }
 
 /// Application principale NoteCraft
@@ -28,7 +32,7 @@ class NoteCraftApp extends StatelessWidget {
           Theme.of(context).textTheme,
         ),
       ),
-      home: const AccueilView(),
+      home: const VueAccueil(),
     );
   }
 }
