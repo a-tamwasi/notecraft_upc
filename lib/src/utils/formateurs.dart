@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 /// Classe utilitaire contenant des fonctions de formatage
 /// Centralise les formatages de dates, durées, tailles de fichiers, etc.
 class Formateurs {
@@ -44,6 +46,7 @@ class Formateurs {
   }
 
   /// Formate une date en format relatif (ex: "Il y a 5 minutes")
+  /// Note : pour une localisation avancée, un package comme `timeago` serait plus adapté.
   static String formaterDateRelative(DateTime date) {
     final maintenant = DateTime.now();
     final difference = maintenant.difference(date);
@@ -71,15 +74,14 @@ class Formateurs {
     }
   }
 
-  /// Formate une date en format court (JJ/MM/AAAA HH:MM)
+  /// Formate une date en format court (JJ/MM/AAAA HH:MM) en utilisant `intl`
   static String formaterDateCourte(DateTime date) {
-    final jour = date.day.toString().padLeft(2, '0');
-    final mois = date.month.toString().padLeft(2, '0');
-    final annee = date.year.toString();
-    final heure = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
+    return DateFormat('dd/MM/yyyy HH:mm', 'fr_FR').format(date);
+  }
 
-    return '$jour/$mois/$annee $heure:$minute';
+  /// Formate une date en format long (ex: "lundi 27 mai 2024")
+  static String formaterDateLongue(DateTime date) {
+    return DateFormat.yMMMMd('fr_FR').format(date);
   }
 
   /// Tronque un texte avec des points de suspension si trop long
