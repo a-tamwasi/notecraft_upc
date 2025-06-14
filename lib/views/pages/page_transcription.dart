@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../transcription_view.dart';
 
 // --- //
 // 1. DÉCLARATION DU WIDGET DE LA PAGE DE TRANSCRIPTION
@@ -15,17 +16,6 @@ class PageTranscription extends StatelessWidget {
   /// La méthode `build` décrit l'interface du widget.
   @override
   Widget build(BuildContext context) {
-    // Le `Container` sert de fond de page, ici de couleur blanche.
-    return Container(
-      color: Colors.white,
-      // `Center` est un widget qui centre son enfant à la fois horizontalement et verticalement.
-      child: const Center(
-        // Le `Text` est le widget qui affiche une chaîne de caractères.
-        child: Text(
-          'Transcription',
-          style: TextStyle(fontSize: 24), // Style pour la taille de la police.
-        ),
-      ),
-    );
+    return const TranscriptionView();
   }
 } 

@@ -24,6 +24,12 @@ class DimensionsApplication {
   /// Marge standard entre les éléments (16.0)
   static const double margeStandard = 16.0;
 
+  /// Marge moyenne (24.0)
+  static const double margeMoyenne = 24.0;
+
+  /// Marge grande (32.0)
+  static const double margeGrande = 32.0;
+
   /// Marge entre les sections (32.0)
   static const double margeSection = 32.0;
 
@@ -36,6 +42,9 @@ class DimensionsApplication {
 
   /// Radius large pour les bordures (16.0)
   static const double radiusL = 16.0;
+
+  /// Radius très large pour les bordures (30.0)
+  static const double radiusXL = 30.0;
 
   /// Radius circulaire (999.0)
   static const double radiusCirculaire = 999.0;

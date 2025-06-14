@@ -45,5 +45,15 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- Permissions pour le microphone -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Cette application a besoin d'accéder à votre microphone pour enregistrer l'audio à transcrire.</string>
+	
+	<!-- Permissions pour la médiathèque (import de fichiers) -->
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Cette application a besoin d'accéder à votre médiathèque pour importer des fichiers audio à transcrire.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+    <string>La reconnaissance vocale sera utilisée pour déterminer les mots que vous prononcez dans le microphone de cet appareil.</string>
 </dict>
 </plist>
