@@ -46,6 +46,9 @@ dependencies:
   permission_handler: ^12.0.0+1
   record: ^6.0.0
   audio_session: ^0.2.2
+  pdf: ^3.11.3
+  file_saver: ^0.2.14
+  file_selector: ^1.0.3
 
 dev_dependencies:
   flutter_test:
