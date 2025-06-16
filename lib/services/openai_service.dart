@@ -19,7 +19,8 @@ class OpenAIException implements Exception {
 /// Inclut des optimisations pour réduire le temps de transcription.
 class OpenAIService {
   /// L'endpoint de l'API Whisper pour les transcriptions.
-  static const String _url = 'https://api.openai.com/v1/audio/transcriptions';
+  static const String _transcriptionUrl = 'https://api.openai.com/v1/audio/transcriptions';
+  static const String _chatCompletionsUrl = 'https://api.openai.com/v1/chat/completions';
   
   /// Client HTTP réutilisable avec timeout optimisé
   static final http.Client _client = http.Client();
@@ -58,7 +59,7 @@ class OpenAIService {
       print('🚀 Début de la transcription...');
       
       final apiKey = _getApiKey();
-      final uri = Uri.parse(_url);
+      final uri = Uri.parse(_transcriptionUrl);
       
       // Optimisation du fichier
       final optimizedFile = await _optimizeAudioFile(cheminFichier);
@@ -122,6 +123,73 @@ class OpenAIService {
         rethrow;
       }
       throw OpenAIException('Erreur inattendue: $e');
+    }
+  }
+
+  /// Génère un titre pertinent et concis pour un texte donné.
+  Future<String> genererTitrePourTexte(String texte) async {
+    print('🧠 Génération du titre pour le texte...');
+    final stopwatch = Stopwatch()..start();
+
+    try {
+      final apiKey = _getApiKey();
+      final uri = Uri.parse(_chatCompletionsUrl);
+
+      final body = json.encode({
+        'model': 'gpt-3.5-turbo',
+        'messages': [
+          {
+            'role': 'system',
+            'content': 'Tu es un expert en résumé de texte. '
+                       'Ton unique rôle est de créer un titre court et pertinent '
+                       'en 5 mots maximum pour le texte fourni par l\'utilisateur. '
+                       'Ne réponds rien d\'autre que le titre.'
+          },
+          {'role': 'user', 'content': texte}
+        ],
+        'temperature': 0.2,
+        'max_tokens': 20,
+      });
+
+      final response = await _client.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $apiKey',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Connection': 'keep-alive',
+        },
+        body: body,
+      );
+
+      stopwatch.stop();
+      print('⚡ Temps de génération du titre: ${stopwatch.elapsedMilliseconds}ms');
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(utf8.decode(response.bodyBytes));
+        String titre = responseData['choices'][0]['message']['content'].trim();
+        
+        // Nettoyage au cas où le modèle ajouterait des guillemets
+        titre = titre.replaceAll('"', '').replaceAll('Titre :', '').trim();
+        
+        print('✅ Titre généré: "$titre"');
+        return titre;
+      } else {
+        final responseData = json.decode(response.body);
+        final errorMessage = responseData['error']?['message'] ?? 'Erreur inconnue';
+        throw OpenAIException('Erreur API de chat (${response.statusCode}): $errorMessage');
+      }
+    } on SocketException {
+      throw OpenAIException('Erreur réseau. Vérifiez votre connexion internet.');
+    } catch (e) {
+      stopwatch.stop();
+      print('❌ Erreur de génération de titre après ${stopwatch.elapsedMilliseconds}ms: $e');
+      
+      if (e is OpenAIException) {
+        rethrow;
+      }
+      // En cas d'erreur de génération, on retourne un titre par défaut
+      return "Titre non généré";
     }
   }
 

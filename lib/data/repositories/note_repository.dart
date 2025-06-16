@@ -20,8 +20,8 @@ class NoteRepositoryImpl implements NoteRepository {
   @override
   Future<Note> addNote(Note note) async {
     final db = await _databaseService.database;
-    final id = await db.insert(DBTables.notes, note.toMap());
-    return note.copyWith(id: id);
+    final id = await db.insert(DBTables.notes, note.toJson());
+    return note.copy(id: id);
   }
 
   @override
@@ -46,7 +46,7 @@ class NoteRepositoryImpl implements NoteRepository {
       return [];
     }
 
-    return List.generate(maps.length, (i) => Note.fromMap(maps[i]));
+    return List.generate(maps.length, (i) => Note.fromJson(maps[i]));
   }
 
   @override
@@ -60,7 +60,7 @@ class NoteRepositoryImpl implements NoteRepository {
     );
 
     if (maps.isNotEmpty) {
-      return Note.fromMap(maps.first);
+      return Note.fromJson(maps.first);
     } else {
       return null;
     }
@@ -71,7 +71,7 @@ class NoteRepositoryImpl implements NoteRepository {
     final db = await _databaseService.database;
     return await db.update(
       DBTables.notes,
-      note.toMap(),
+      note.toJson(),
       where: '${NoteFields.id} = ?',
       whereArgs: [note.id],
     );

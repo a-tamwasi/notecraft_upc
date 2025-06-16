@@ -1,8 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:notecraft_upc/data/database/database_service.dart';
+// import 'package:notecraft_upc/data/database/database_service.dart'; // Import inutile
 import 'package:notecraft_upc/data/repositories/note_repository.dart';
 import 'package:notecraft_upc/services/openai_service.dart';
 import '../models/note_model.dart';
+import 'package:notecraft_upc/data/database/database_service.dart';
 
 /// Contrôleur pour gérer la logique de transcription.
 /// Fait le lien entre les vues, les services (API) et les repositories (BD).
@@ -87,6 +88,7 @@ class TranscriptionController extends ChangeNotifier {
         dateCreation: DateTime.now(),
         cheminAudio: cheminFichier,
         langue: 'fr', // Pour l'instant, on met 'fr' par défaut
+        duree: 0, // TODO: Obtenir la vraie durée
       );
 
       // 3. Sauvegarder la note dans la base de données via le repository

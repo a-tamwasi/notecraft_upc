@@ -6,6 +6,7 @@ import 'package:notecraft_upc/views/pages/page_accueil.dart';
 import 'package:notecraft_upc/views/pages/page_historique.dart';
 import 'package:notecraft_upc/views/pages/page_transcription.dart';
 import 'vue_parametres.dart';
+import '../navigation_notifier.dart';
 
 /// Le widget `VueAccueil` est le conteneur principal de l'application après la connexion.
 /// Il gère la structure globale, y compris la barre d'onglets (BottomNavigationBar)
@@ -45,6 +46,25 @@ class _EtatVueAccueil extends State<VueAccueil> {
       // Page 3: L'abonnement
       const PageAbonnement(),
     ];
+
+    // Écoute les changements du notificateur de navigation
+    navigationNotifier.addListener(_onNavigationNotification);
+  }
+
+  /// `dispose` est appelée lorsque le widget est retiré de l'arbre.
+  /// Il est crucial de supprimer les écouteurs pour éviter les fuites de mémoire.
+  @override
+  void dispose() {
+    navigationNotifier.removeListener(_onNavigationNotification);
+    super.dispose();
+  }
+
+  /// Gère la notification de changement d'onglet.
+  void _onNavigationNotification() {
+    // On met à jour l'index seulement si la nouvelle valeur est différente de l'actuelle.
+    if (_indexSelectionne != navigationNotifier.value) {
+      _selectionnerOnglet(navigationNotifier.value);
+    }
   }
 
   /// Cette fonction est appelée lorsqu'un onglet de la barre de navigation est touché.
@@ -54,6 +74,11 @@ class _EtatVueAccueil extends State<VueAccueil> {
     setState(() {
       _indexSelectionne = index;
     });
+    // On met aussi à jour le notificateur pour que l'état soit cohérent
+    // si d'autres parties de l'app l'écoutent.
+    if (navigationNotifier.value != index) {
+      navigationNotifier.value = index;
+    }
   }
 
   /// La méthode `build` construit l'interface visuelle de la vue.
