@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:notecraft_upc/models/note_model.dart';
 
 /// Helper class to define constant names for database tables.
 /// This prevents typos and centralizes table names.
@@ -14,12 +15,13 @@ class DBTables {
 
 /// Helper class to define constant names for the fields in the 'notes' table.
 class NoteFields {
-  static const String id = 'id';
+  static const String id = '_id'; // Common practice to use _id for primary keys
   static const String titre = 'titre';
   static const String contenu = 'contenu';
   static const String dateCreation = 'dateCreation';
   static const String cheminAudio = 'cheminAudio';
   static const String langue = 'langue';
+  static const String duree = 'duree'; // Nouveau champ
 }
 
 /// Helper class to define constant names for the fields in the 'astuces' table.
@@ -37,7 +39,7 @@ class DatabaseService {
   DatabaseService._internal();
 
   static Database? _database;
-  static const int _dbVersion = 2; // INCREMENTED DB VERSION
+  static const int _dbVersion = 3; // Version incrémentée pour la migration
   static const String _dbName = 'notecraft.db'; // The name of our database file.
 
   /// Getter for the database.
@@ -82,7 +84,8 @@ class DatabaseService {
         ${NoteFields.contenu} TEXT NOT NULL,
         ${NoteFields.dateCreation} TEXT NOT NULL,
         ${NoteFields.cheminAudio} TEXT NOT NULL,
-        ${NoteFields.langue} TEXT NOT NULL
+        ${NoteFields.langue} TEXT NOT NULL,
+        ${NoteFields.duree} INTEGER NOT NULL
       )
     ''');
 
@@ -114,7 +117,8 @@ class DatabaseService {
           ${NoteFields.contenu} TEXT NOT NULL,
           ${NoteFields.dateCreation} TEXT NOT NULL,
           ${NoteFields.cheminAudio} TEXT NOT NULL,
-          ${NoteFields.langue} TEXT NOT NULL
+          ${NoteFields.langue} TEXT NOT NULL,
+          ${NoteFields.duree} INTEGER NOT NULL
         )
       ''');
       
@@ -143,5 +147,93 @@ class DatabaseService {
       ''');
       await db.execute('DROP TABLE astuces_old');
     }
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE ${DBTables.notes} ADD COLUMN ${NoteFields.duree} INTEGER NOT NULL DEFAULT 0');
+    }
+  }
+
+  // --- CRUD Operations for Notes ---
+
+  Future<Note> create(Note note) async {
+    final db = await instance.database;
+    final id = await db.insert(DBTables.notes, note.toJson());
+    return note.copy(id: id);
+  }
+
+  Future<Note> read(int id) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      DBTables.notes,
+      columns: [
+        NoteFields.id,
+        NoteFields.titre,
+        NoteFields.contenu,
+        NoteFields.dateCreation,
+        NoteFields.cheminAudio,
+        NoteFields.langue,
+        NoteFields.duree,
+      ],
+      where: '${NoteFields.id} = ?',
+      whereArgs: [id],
+    );
+
+    if (maps.isNotEmpty) {
+      return Note.fromJson(maps.first);
+    } else {
+      throw Exception('ID $id not found');
+    }
+  }
+
+  Future<List<Note>> readAll({String? searchQuery, String? sortOrder = 'date_desc'}) async {
+    final db = await instance.database;
+
+    String? where;
+    List<Object?>? whereArgs;
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      where = '${NoteFields.titre} LIKE ? OR ${NoteFields.contenu} LIKE ?';
+      whereArgs = ['%$searchQuery%', '%$searchQuery%'];
+    }
+
+    String orderBy;
+    switch (sortOrder) {
+      case 'titre_asc':
+        orderBy = '${NoteFields.titre} ASC';
+        break;
+      case 'duree_asc':
+        orderBy = '${NoteFields.duree} ASC';
+        break;
+      case 'date_desc':
+      default:
+        orderBy = '${NoteFields.dateCreation} DESC';
+        break;
+    }
+
+    final result = await db.query(
+      DBTables.notes,
+      orderBy: orderBy,
+      where: where,
+      whereArgs: whereArgs,
+    );
+
+    return result.map((json) => Note.fromJson(json)).toList();
+  }
+
+  Future<int> update(Note note) async {
+    final db = await instance.database;
+    return db.update(
+      DBTables.notes,
+      note.toJson(),
+      where: '${NoteFields.id} = ?',
+      whereArgs: [note.id],
+    );
+  }
+
+  Future<int> delete(int id) async {
+    final db = await instance.database;
+    return await db.delete(
+      DBTables.notes,
+      where: '${NoteFields.id} = ?',
+      whereArgs: [id],
+    );
   }
 } 

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:audioplayers/audioplayers.dart' as audioplayer;
 import 'package:audio_session/audio_session.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:file_saver/file_saver.dart';
@@ -16,6 +17,14 @@ import '../services/pdf_service.dart';
 import '../src/constants/couleurs_application.dart';
 import '../src/constants/dimensions_application.dart';
 import '../src/constants/styles_texte.dart';
+import 'pages/page_abonnement.dart';
+import '../navigation_notifier.dart';
+import '../services/credit_service.dart';
+import 'package:iconsax/iconsax.dart';
+import '../data/database/database_service.dart';
+import '../models/note_model.dart';
+import '../notifiers/history_notifier.dart';
+import 'package:intl/intl.dart';
 
 /// Vue principale pour la transcription audio
 /// Affiche l'interface utilisateur pour enregistrer ou importer des audios
@@ -38,11 +47,16 @@ class _TranscriptionViewState extends State<TranscriptionView> {
   String? _transcriptionResult;
   final OpenAIService _openAIService = OpenAIService();
   final TextEditingController _transcriptionController = TextEditingController();
+  final audioplayer.AudioPlayer _audioPlayer = audioplayer.AudioPlayer();
+
+  // La gestion des crédits est maintenant déléguée au CreditService.
 
   @override
   void initState() {
     super.initState();
     _initializeAudio();
+    // Écoute les changements du service de crédits pour reconstruire le widget.
+    creditService.addListener(_onCreditsChanged);
   }
 
   Future<void> _initializeAudio() async {
@@ -70,7 +84,17 @@ class _TranscriptionViewState extends State<TranscriptionView> {
     _timer?.cancel();
     _recorder?.dispose();
     _transcriptionController.dispose();
+    _audioPlayer.dispose();
+    // Cesse d'écouter les changements pour éviter les fuites de mémoire.
+    creditService.removeListener(_onCreditsChanged);
     super.dispose();
+  }
+
+  // Déclenche une reconstruction du widget lorsque les crédits changent.
+  void _onCreditsChanged() {
+    setState(() {
+      // Le contenu du widget sera reconstruit avec les nouvelles valeurs du service.
+    });
   }
 
   Future<bool> _requestMicrophonePermission() async {
@@ -104,6 +128,10 @@ class _TranscriptionViewState extends State<TranscriptionView> {
   }
 
   void _toggleRecording() async {
+    if (creditService.remainingCreditSeconds <= 0) {
+      _montrerAlerteCreditEpuise();
+      return;
+    }
     if (!await _requestMicrophonePermission()) return;
 
     if (_isRecording && !_isPaused) {
@@ -125,6 +153,8 @@ class _TranscriptionViewState extends State<TranscriptionView> {
       await _recorder!.stop();
       _timer?.cancel();
       
+      final int dureeEnregistrement = _secondsElapsed;
+
       setState(() {
         _isRecording = false;
         _isPaused = false;
@@ -134,7 +164,7 @@ class _TranscriptionViewState extends State<TranscriptionView> {
 
       // Lancer automatiquement la transcription
       if (_recordingPath != null) {
-        await _transcribeAudio(_recordingPath!);
+        await _transcribeAudio(_recordingPath!, dureeEnregistrement);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -210,33 +240,78 @@ class _TranscriptionViewState extends State<TranscriptionView> {
         setState(() {
           _secondsElapsed++;
         });
+
+        // Arrêter l'enregistrement si le crédit est épuisé
+        if (_secondsElapsed >= creditService.remainingCreditSeconds) {
+          _stopRecording();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Crédit de transcription épuisé. Enregistrement arrêté.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       }
     });
   }
 
-  Future<void> _transcribeAudio(String filePath) async {
-    setState(() => _isTranscribing = true);
+  Future<void> _transcribeAudio(String filePath, int audioDurationInSeconds) async {
+    if (creditService.remainingCreditSeconds <= 0) {
+      _montrerAlerteCreditEpuise();
+      return;
+    }
+
+    setState(() {
+      _isTranscribing = true;
+      _transcriptionResult = null;
+      _transcriptionController.text = '';
+    });
 
     try {
-      print('🎵 Début de la transcription du fichier: $filePath');
       final transcription = await _openAIService.transcrireAudio(filePath);
       
+      creditService.deductCredits(audioDurationInSeconds);
+
+      _transcriptionController.text = transcription;
       setState(() {
         _transcriptionResult = transcription;
-        _transcriptionController.text = transcription;
-        // Réinitialiser le chronomètre à zéro après transcription réussie
-        _secondsElapsed = 0;
       });
 
+      String titre;
+      try {
+        titre = await _openAIService.genererTitrePourTexte(transcription);
+      } catch (e) {
+        print('Erreur lors de la génération du titre : $e. Utilisation d\'un titre par défaut.');
+        titre = 'Transcription du ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}';
+      }
+
+      await _sauvegarderAutomatiquementLaNote(
+        titre: titre,
+        transcription: transcription,
+        dureeEnregistrement: audioDurationInSeconds,
+        cheminAudio: filePath,
+      );
+
+    } on OpenAIException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Transcription terminée !')),
+        SnackBar(
+          content: Text('Erreur de transcription: ${e.message}'),
+          backgroundColor: Colors.red,
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur de transcription: $e')),
+        SnackBar(
+          content: Text('Une erreur inattendue est survenue: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
-      setState(() => _isTranscribing = false);
+      setState(() {
+        _isTranscribing = false;
+        // On ne supprime plus le fichier ici car son chemin est sauvegardé
+        // La gestion du cycle de vie des fichiers audio devra être faite ailleurs
+      });
     }
   }
 
@@ -250,7 +325,14 @@ class _TranscriptionViewState extends State<TranscriptionView> {
 
       if (result != null && result.files.single.path != null) {
         final String filePath = result.files.single.path!;
-        await _transcribeAudio(filePath);
+        
+        // Estimation conservatrice de la durée basée sur la taille du fichier
+        // 1 MB ≈ 1 minute d'audio (estimation très approximative)
+        final fileSizeInBytes = result.files.single.size;
+        final estimatedDurationSeconds = (fileSizeInBytes / (1024 * 1024) * 60).round();
+        
+        // Procéder directement à la transcription avec l'estimation
+        await _transcribeAudio(filePath, estimatedDurationSeconds);
       } else {
         print("Aucun fichier sélectionné.");
       }
@@ -294,11 +376,106 @@ class _TranscriptionViewState extends State<TranscriptionView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _construireSectionRappelCredit(),
+              const SizedBox(height: DimensionsApplication.margeSection),
               _construireSectionEnregistrement(),
               const SizedBox(height: DimensionsApplication.margeSection),
               if (_transcriptionResult != null) _construireSectionTranscription(),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Construit la section de rappel des crédits de transcription (version discrète)
+  Widget _construireSectionRappelCredit() {
+    final remainingCreditSeconds = creditService.remainingCreditSeconds;
+    final totalCreditSeconds = creditService.totalCreditSeconds;
+    final remainingMinutes = (remainingCreditSeconds / 60).floor();
+    final totalMinutes = (totalCreditSeconds / 60).floor();
+    final progress = (totalCreditSeconds > 0) ? remainingCreditSeconds / totalCreditSeconds : 0.0;
+
+    return Card(
+      elevation: 2.0, // Ombre plus subtile
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DimensionsApplication.radiusL),
+      ),
+      child: Padding(
+        // Padding réduit pour un design plus compact
+        padding: const EdgeInsets.symmetric(
+            vertical: DimensionsApplication.paddingM,
+            horizontal: DimensionsApplication.paddingL),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.timer_outlined,
+                        color: Colors.grey[600], // Icône plus claire
+                        size: 20, // Icône plus petite
+                      ),
+                      const SizedBox(width: DimensionsApplication.paddingS),
+                      Flexible(
+                        child: Text(
+                          '$remainingMinutes min',
+                          style: StylesTexte.corps.copyWith(fontSize: 14, color: Colors.grey[800]),
+                          overflow: TextOverflow.ellipsis, // Empêche le texte de déborder
+                          softWrap: false, // Empêche le retour à la ligne
+                        ),
+                      ),
+                      
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8), // Ajoute un espacement de sécurité
+                // --- Le nouveau bouton, repensé pour l'esthétique et la clarté ---
+                FilledButton.tonalIcon(
+                  onPressed: _acheterPlusDeCredits,
+                  icon: const Icon(Iconsax.add_square, size: 18),
+                  label: const Text('Recharger'),
+                  style: FilledButton.styleFrom(
+                    // Utilise les couleurs du thème pour une intégration parfaite
+                    foregroundColor: CouleursApplication.primaire,
+                    backgroundColor: CouleursApplication.primaire.withOpacity(0.1),
+                    // Un padding équilibré pour une apparence soignée
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    // Un style de texte cohérent avec le reste de l'application
+                    textStyle: StylesTexte.corpsPetit.copyWith(fontWeight: FontWeight.bold),
+                    // Assure que le bouton ne prend pas plus de place que nécessaire
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    // Une bordure subtile pour délimiter le bouton
+                    side: BorderSide(color: CouleursApplication.primaire.withOpacity(0.2)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: DimensionsApplication.margeMoyenne),
+            // Barre de progression plus fine
+            ClipRRect(
+              borderRadius: BorderRadius.circular(DimensionsApplication.radiusS),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6, // Hauteur réduite
+                backgroundColor: Colors.grey[200],
+                valueColor: const AlwaysStoppedAnimation<Color>(CouleursApplication.primaire),
+              ),
+            ),
+            const SizedBox(height: DimensionsApplication.paddingS),
+            Text(
+              '$remainingMinutes min restantes sur $totalMinutes min',
+              // Texte plus petit et discret
+              style: StylesTexte.corpsPetit.copyWith(color: Colors.grey[600], fontSize: 11),
+            ),
+          ],
         ),
       ),
     );
@@ -886,6 +1063,92 @@ Généré par NoteCraft App
         ),
       );
       print('Erreur exportation PDF: $e');
+    }
+  }
+
+  /// Gère la navigation vers la page d'achat et la mise à jour des crédits
+  Future<void> _acheterPlusDeCredits() async {
+    // Met à jour la valeur du notificateur pour demander le changement vers l'onglet 3 (Abonnement).
+    navigationNotifier.value = 3;
+  }
+
+  /// Affiche une alerte si le crédit est insuffisant pour une transcription
+  void _montrerAlerteCreditInsuffisant(int dureeRequiseSecondes) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Crédit insuffisant'),
+        content: Text(
+          'Il vous faut au moins ${(dureeRequiseSecondes / 60).ceil()} minutes pour transcrire ce fichier, mais il ne vous reste que ${(creditService.remainingCreditSeconds / 60).floor()} minutes.'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _acheterPlusDeCredits();
+            },
+            child: const Text('Acheter plus'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Affiche une alerte si le crédit est totalement épuisé
+  void _montrerAlerteCreditEpuise() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Crédit épuisé'),
+        content: const Text('Vous n\'avez plus de minutes de transcription. Veuillez en acheter pour continuer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _acheterPlusDeCredits();
+            },
+            child: const Text('Acheter plus'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sauvegarderAutomatiquementLaNote({
+    required String titre,
+    required String transcription,
+    required int dureeEnregistrement,
+    required String cheminAudio,
+  }) async {
+    try {
+      final nouvelleNote = Note(
+        titre: titre,
+        contenu: transcription,
+        dateCreation: DateTime.now(),
+        duree: dureeEnregistrement,
+        cheminAudio: cheminAudio,
+        langue: 'fr-FR', // Pour l'instant, la langue est définie ici
+      );
+
+      await DatabaseService.instance.create(nouvelleNote);
+      print('Note sauvegardée avec succès dans la base de données.');
+
+      // Notifier la page d'historique qu'une nouvelle note a été ajoutée
+      historyNotifier.notifyHistoryChanged();
+
+    } catch (e) {
+      print('Erreur lors de la sauvegarde automatique de la note: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de la sauvegarde de la note: $e')),
+      );
     }
   }
 } 
