@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../transcription_view.dart';
+import 'transcription_view.dart';
 
 // --- //
 // 1. DÉCLARATION DU WIDGET DE LA PAGE DE TRANSCRIPTION

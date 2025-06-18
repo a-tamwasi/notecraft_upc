@@ -1,12 +1,12 @@
 import 'dart:ui'; // Importe les classes pour les effets de rendu comme le flou
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:notecraft_upc/views/pages/page_abonnement.dart';
-import 'package:notecraft_upc/views/pages/page_accueil.dart';
-import 'package:notecraft_upc/views/pages/page_historique.dart';
-import 'package:notecraft_upc/views/pages/page_transcription.dart';
-import 'vue_parametres.dart';
-import '../navigation_notifier.dart';
+import 'package:notecraft_upc/views/abonnement/abonnement_page.dart';
+import 'package:notecraft_upc/views/accueil/accueil_page.dart';
+import 'package:notecraft_upc/views/historique/historique_page.dart';
+import 'package:notecraft_upc/views/transcription/transcription_page.dart';
+import '../parametres/parametres_page.dart';
+import '../../controllers/navigation_notifier.dart';
 
 /// Le widget `VueAccueil` est le conteneur principal de l'application après la connexion.
 /// Il gère la structure globale, y compris la barre d'onglets (BottomNavigationBar)
