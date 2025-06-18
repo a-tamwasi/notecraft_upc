@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "951476543193",
+    "project_id": "notecraft-db67f",
+    "storage_bucket": "notecraft-db67f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:951476543193:android:a742c873a755b40b5f68c8",
+        "android_client_info": {
+          "package_name": "com.example.notecraft_upc"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCW12sC_EOOMRcOjTAShmPcFkx4SkicbR8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

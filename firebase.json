@@ -1,0 +1,22 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "notecraft-db67f",
+          "appId": "1:951476543193:android:a742c873a755b40b5f68c8",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "notecraft-db67f",
+          "configurations": {
+            "android": "1:951476543193:android:a742c873a755b40b5f68c8",
+            "ios": "1:951476543193:ios:f94e6c0386d045085f68c8"
+          }
+        }
+      }
+    }
+  }
+}

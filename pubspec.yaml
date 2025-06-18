@@ -50,6 +50,7 @@ dependencies:
   file_saver: ^0.2.14
   file_selector: ^1.0.3
   audioplayers: ^6.4.0
+  firebase_core: ^3.14.0
 
 dev_dependencies:
   flutter_test:
