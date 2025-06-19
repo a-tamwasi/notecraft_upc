@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../src/constants/couleurs_application.dart';
 import '../../src/constants/dimensions_application.dart';
 import '../../src/constants/styles_texte.dart';
+import '../../src/utils/error_handler.dart';
 import '../../data/database/database_service.dart';
 import '../../models/note_model.dart';
 import '../../notifiers/history_notifier.dart';
@@ -38,6 +39,7 @@ class _PageHistoriqueState extends State<PageHistorique> {
   String _valeurTriSelectionnee = 'date_desc';
   late Future<List<Note>> _notesFuture;
   final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -48,14 +50,25 @@ class _PageHistoriqueState extends State<PageHistorique> {
   }
 
   @override
+  void deactivate() {
+    // Ferme le clavier quand la page devient inactive (navigation vers autre onglet)
+    _searchFocusNode.unfocus();
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
     historyNotifier.removeListener(_refreshNotes);
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
   void _onSearchChanged() {
+    setState(() {
+      // Déclenche un rebuild pour mettre à jour le bouton clear du champ de recherche
+    });
     _refreshNotes();
   }
 
@@ -93,29 +106,17 @@ class _PageHistoriqueState extends State<PageHistorique> {
     if (confirmation == true) {
       try {
         await DatabaseService.instance.delete(id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Note supprimée avec succès.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showSuccess(context, 'Note supprimée avec succès.');
         _refreshNotes(); // Rafraîchir la liste
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur lors de la suppression: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showError(context, 'Erreur lors de la suppression: $e');
       }
     }
   }
 
   Future<void> _exporterTxt(Note note) async {
     if (note.contenu.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cette note est vide.')),
-      );
+      showInfo(context, 'Cette note est vide.');
       return;
     }
 
@@ -167,33 +168,19 @@ Généré par NoteCraft App
       Navigator.of(context).pop();
 
       if (filePath != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Fichier TXT exporté avec succès !'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        showSuccess(context, '✅ Fichier TXT exporté avec succès !');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Exportation annulée par l\'utilisateur')),
-        );
+        showInfo(context, 'Exportation annulée par l\'utilisateur');
       }
     } catch (e) {
       if (Navigator.canPop(context)) Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Erreur lors de l\'exportation TXT: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showError(context, '❌ Erreur lors de l\'exportation TXT: $e');
     }
   }
 
   Future<void> _exporterPdf(Note note) async {
     if (note.contenu.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cette note est vide.')),
-      );
+      showInfo(context, 'Cette note est vide.');
       return;
     }
 
@@ -253,25 +240,13 @@ Généré par NoteCraft App
       Navigator.of(context).pop();
 
       if (filePath != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ PDF exporté avec succès !'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        showSuccess(context, '✅ PDF exporté avec succès !');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Exportation annulée par l\'utilisateur')),
-        );
+        showInfo(context, 'Exportation annulée par l\'utilisateur');
       }
     } catch (e) {
       if (Navigator.canPop(context)) Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Erreur lors de l\'exportation PDF: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showError(context, '❌ Erreur lors de l\'exportation PDF: $e');
     }
   }
 
@@ -279,43 +254,55 @@ Généré par NoteCraft App
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white, // Fond blanc pour la zone des contrôles
-      body: Column(
-        children: [
-          // --- Section des contrôles (fixe) ---
-          Padding(
-            padding: const EdgeInsets.all(DimensionsApplication.paddingL),
-            child: _construireControlesFiltre(),
-          ),
-          // --- Section de la liste (scrollable) ---
-          Expanded(
-            child: Container(
-              color: CouleursApplication.fondPrincipal, // Fond pour la liste
-              child: FutureBuilder<List<Note>>(
-                future: _notesFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Center(child: Text('Erreur: ${snapshot.error}'));
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(child: Text('Aucune transcription dans l\'historique.'));
-                  } else {
-                    final notes = snapshot.data!;
-                    final searchQuery = _searchController.text;
-                    return ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: DimensionsApplication.paddingL),
-                      itemCount: notes.length,
-                      itemBuilder: (context, index) {
-                        final note = notes[index];
-                        return _construireCarteTranscription(note, searchQuery);
-                      },
-                    );
-                  }
-                },
+      body: GestureDetector(
+        onTap: () {
+          // Ferme le clavier et retire le focus du champ de recherche
+          _searchFocusNode.unfocus();
+          FocusScope.of(context).unfocus();
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          children: [
+            // --- Section des contrôles (fixe) ---
+            Padding(
+              padding: const EdgeInsets.all(DimensionsApplication.paddingL),
+              child: _construireControlesFiltre(),
+            ),
+            // --- Section de la liste (scrollable) ---
+            Expanded(
+              child: Container(
+                color: CouleursApplication.fondPrincipal, // Fond pour la liste
+                child: FutureBuilder<List<Note>>(
+                  future: _notesFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Center(child: Text('Erreur: ${snapshot.error}'));
+                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return const Center(child: Text('Aucune transcription dans l\'historique.'));
+                    } else {
+                      final notes = snapshot.data!;
+                      final searchQuery = _searchController.text;
+                      return ListView.builder(
+                        padding: const EdgeInsets.only(
+                          left: DimensionsApplication.paddingL,
+                          right: DimensionsApplication.paddingL,
+                          bottom: 60, // Padding en bas pour éviter que le contenu soit caché par la bottom navigation bar
+                        ),
+                        itemCount: notes.length,
+                        itemBuilder: (context, index) {
+                          final note = notes[index];
+                          return _construireCarteTranscription(note, searchQuery);
+                        },
+                      );
+                    }
+                  },
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -537,10 +524,30 @@ Généré par NoteCraft App
         // --- Barre de recherche ---
         TextFormField(
           controller: _searchController,
+          focusNode: _searchFocusNode,
+          textInputAction: TextInputAction.search,
+          onFieldSubmitted: (value) {
+            // Ferme le clavier quand l'utilisateur appuie sur "OK" ou "Rechercher"
+            _searchFocusNode.unfocus();
+          },
+          onTapOutside: (event) {
+            // Ferme le clavier quand l'utilisateur tape en dehors du champ
+            _searchFocusNode.unfocus();
+          },
           decoration: InputDecoration(
             hintText: 'Rechercher une transcription...',
             hintStyle: StylesTexte.corps.copyWith(color: CouleursApplication.texteSecondaire),
             prefixIcon: const Icon(Iconsax.search_normal_1, color: CouleursApplication.texteSecondaire),
+            // Bouton pour effacer le texte si il y en a un
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, color: CouleursApplication.texteSecondaire),
+                    onPressed: () {
+                      _searchController.clear();
+                      _searchFocusNode.unfocus();
+                    },
+                  )
+                : null,
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(
@@ -703,98 +710,100 @@ class _TranscriptionDetailDialogState extends State<_TranscriptionDetailDialog> 
       insetPadding: EdgeInsets.zero, // Supprime les marges pour occuper toute la largeur
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero), // Pas de coins arrondis en plein écran
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(DimensionsApplication.paddingL),
-          child: Column(
-            mainAxisSize: MainAxisSize.max, // Occupe toute la hauteur disponible
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // --- En-tête avec titre et bouton de fermeture ---
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.note.titre,
-                      style: StylesTexte.titrePrincipal.copyWith(fontSize: 18),
+      child: GestureDetector(
+        onTap: () {
+          // Ferme le clavier lorsqu'on clique en dehors des champs de texte
+          FocusScope.of(context).unfocus();
+        },
+        behavior: HitTestBehavior.opaque,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(DimensionsApplication.paddingL),
+            child: Column(
+              mainAxisSize: MainAxisSize.max, // Occupe toute la hauteur disponible
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --- En-tête avec titre et bouton de fermeture ---
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.note.titre,
+                        style: StylesTexte.titrePrincipal.copyWith(fontSize: 18),
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                    constraints: const BoxConstraints(),
-                    padding: EdgeInsets.zero,
-                  ),
-                ],
-              ),
-              const SizedBox(height: DimensionsApplication.margeMoyenne),
-              // --- Métadonnées ---
-              Row(
-                children: [
-                  Icon(Iconsax.calendar_1, size: 14, color: Colors.grey.shade600),
-                  const SizedBox(width: 4),
-                  Text(DateFormat('d MMM y, HH:mm', 'fr_FR').format(widget.note.dateCreation), style: StylesTexte.corpsPetit),
-                  const SizedBox(width: 16),
-                  Icon(Iconsax.clock, size: 14, color: Colors.grey.shade600),
-                  const SizedBox(width: 4),
-                  Text('${(widget.note.duree ~/ 60).toString().padLeft(2, '0')}:${(widget.note.duree % 60).toString().padLeft(2, '0')}', style: StylesTexte.corpsPetit),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(DimensionsApplication.radiusS),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                      constraints: const BoxConstraints(),
+                      padding: EdgeInsets.zero,
                     ),
-                    child: Text(
-                      widget.note.langue,
-                      style: StylesTexte.corpsPetit.copyWith(
-                        color: Colors.grey.shade700,
-                        fontSize: 11,
+                  ],
+                ),
+                const SizedBox(height: DimensionsApplication.margeMoyenne),
+                // --- Métadonnées ---
+                Row(
+                  children: [
+                    Icon(Iconsax.calendar_1, size: 14, color: Colors.grey.shade600),
+                    const SizedBox(width: 4),
+                    Text(DateFormat('d MMM y, HH:mm', 'fr_FR').format(widget.note.dateCreation), style: StylesTexte.corpsPetit),
+                    const SizedBox(width: 16),
+                    Icon(Iconsax.clock, size: 14, color: Colors.grey.shade600),
+                    const SizedBox(width: 4),
+                    Text('${(widget.note.duree ~/ 60).toString().padLeft(2, '0')}:${(widget.note.duree % 60).toString().padLeft(2, '0')}', style: StylesTexte.corpsPetit),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(DimensionsApplication.radiusS),
+                      ),
+                      child: Text(
+                        widget.note.langue,
+                        style: StylesTexte.corpsPetit.copyWith(
+                          color: Colors.grey.shade700,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: DimensionsApplication.margeGrande),
+                // --- Contenu de la transcription (éditable) ---
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: TextFormField(
+                      controller: _textController,
+                      maxLines: null,
+                      style: StylesTexte.corps.copyWith(height: 1.5, fontSize: 15),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
                       ),
                     ),
                   ),
-                ],
-              ),
-              const Divider(height: DimensionsApplication.margeGrande),
-              // --- Contenu de la transcription (éditable) ---
-              Flexible(
-                child: SingleChildScrollView(
-                  child: TextFormField(
-                    controller: _textController,
-                    maxLines: null,
-                    style: StylesTexte.corps.copyWith(height: 1.5, fontSize: 15),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
                 ),
-              ),
-              const SizedBox(height: DimensionsApplication.margeMoyenne),
-              // --- Actions (bouton de sauvegarde conditionnel) ---
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (_isModified)
-                    TextButton(
-                      onPressed: () {
-                        widget.onSave(_textController.text);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Modification sauvegardée !'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                        Navigator.of(context).pop();
-                      },
-                      child: const Text('Sauvegarder'),
-                    ),
-                ],
-              )
-            ],
+                const SizedBox(height: DimensionsApplication.margeMoyenne),
+                // --- Actions (bouton de sauvegarde conditionnel) ---
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (_isModified)
+                      TextButton(
+                        onPressed: () {
+                          widget.onSave(_textController.text);
+                          showSuccess(context, 'Modification sauvegardée !');
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text('Sauvegarder'),
+                      ),
+                  ],
+                )
+              ],
+            ),
           ),
         ),
       ),

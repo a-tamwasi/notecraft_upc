@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../src/constants/couleurs_application.dart';
 import '../../src/constants/dimensions_application.dart';
 import '../../src/constants/styles_texte.dart';
+import '../../src/utils/error_handler.dart';
 import '../../services/credit_service.dart';
 
 // --- //
@@ -50,13 +51,7 @@ class PageAbonnement extends StatelessWidget {
                 creditService.addCredits(3600);
 
                 // Affiche une confirmation à l'utilisateur
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('60 minutes ont été ajoutées à votre compte !'),
-                    backgroundColor: Colors.green,
-                    duration: Duration(seconds: 3),
-                  ),
-                );
+                showSuccess(context, '60 minutes ont été ajoutées à votre compte !');
 
                 // L'ancienne logique de pop est retirée car la navigation est gérée différemment
               },

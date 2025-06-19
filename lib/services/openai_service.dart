@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import '../repositories/transcription_repository.dart';
 
 /// Classe d'exception personnalisée pour les erreurs liées à l'API OpenAI.
 class OpenAIException implements Exception {
@@ -17,7 +17,14 @@ class OpenAIException implements Exception {
 
 /// Un service optimisé pour la communication avec l'API d'OpenAI.
 /// Inclut des optimisations pour réduire le temps de transcription.
-class OpenAIService {
+/// 
+/// TODO: Écrire des tests unitaires pour OpenAIService
+/// - Test de transcription avec fichier audio valide
+/// - Test de génération de titre avec texte valide
+/// - Test de gestion d'erreurs (clé API invalide, réseau indisponible)
+/// - Test de gestion des timeouts
+/// - Mock du client HTTP pour tests isolés
+class OpenAIService implements TranscriptionRepository {
   /// L'endpoint de l'API Whisper pour les transcriptions.
   static const String _transcriptionUrl = 'https://api.openai.com/v1/audio/transcriptions';
   static const String _chatCompletionsUrl = 'https://api.openai.com/v1/chat/completions';
@@ -52,7 +59,8 @@ class OpenAIService {
   }
 
   /// Transcrit un fichier audio en utilisant l'API Whisper d'OpenAI avec optimisations.
-  Future<String> transcrireAudio(String cheminFichier) async {
+  @override
+  Future<String> transcribeAudio(String filePath) async {
     final stopwatch = Stopwatch()..start();
     
     try {
@@ -62,7 +70,7 @@ class OpenAIService {
       final uri = Uri.parse(_transcriptionUrl);
       
       // Optimisation du fichier
-      final optimizedFile = await _optimizeAudioFile(cheminFichier);
+      final optimizedFile = await _optimizeAudioFile(filePath);
       
       // Création de la requête avec headers optimisés
       final request = http.MultipartRequest('POST', uri)
@@ -79,7 +87,7 @@ class OpenAIService {
         'file', 
         optimizedFile.path,
         // Spécifier le type MIME pour éviter la détection automatique
-        contentType: _getContentType(cheminFichier),
+        contentType: _getContentType(filePath),
       );
       request.files.add(multipartFile);
 
@@ -127,7 +135,8 @@ class OpenAIService {
   }
 
   /// Génère un titre pertinent et concis pour un texte donné.
-  Future<String> genererTitrePourTexte(String texte) async {
+  @override
+  Future<String> generateTitle(String text) async {
     print('🧠 Génération du titre pour le texte...');
     final stopwatch = Stopwatch()..start();
 
@@ -145,7 +154,7 @@ class OpenAIService {
                        'en 5 mots maximum pour le texte fourni par l\'utilisateur. '
                        'Ne réponds rien d\'autre que le titre.'
           },
-          {'role': 'user', 'content': texte}
+          {'role': 'user', 'content': text}
         ],
         'temperature': 0.2,
         'max_tokens': 20,
@@ -210,8 +219,15 @@ class OpenAIService {
     }
   }
 
-  /// Nettoie les ressources
-  static void dispose() {
+  /// Implémentation de l'interface TranscriptionRepository
+  @override
+  void dispose() {
+    // Les ressources statiques sont partagées, ne pas fermer ici
+    // La fermeture se fait via closeHttpClient()
+  }
+
+  /// Nettoie les ressources HTTP statiques
+  static void closeHttpClient() {
     _client.close();
   }
 } 
