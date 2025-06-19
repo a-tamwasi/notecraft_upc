@@ -94,6 +94,8 @@ class _EtatVueAccueil extends State<VueAccueil> {
       // La barre d'application en haut de l'écran.
       appBar: AppBar(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white, // Garde la couleur blanche même pendant le scroll
+        scrolledUnderElevation: 0, // Désactive l'effet d'élévation lors du scroll
         title: Image.asset('assets/images/logo.png', height: 150),
         centerTitle: true,
         actions: [

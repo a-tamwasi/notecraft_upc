@@ -79,7 +79,7 @@ class TranscriptionController extends ChangeNotifier {
 
     try {
       // 1. Appeler le service OpenAI pour la transcription
-      final texteTranscrit = await _openAIService.transcrireAudio(cheminFichier);
+      final texteTranscrit = await _openAIService.transcribeAudio(cheminFichier);
 
       // 2. Créer un objet Note avec le résultat
       final nouvelleNote = Note(

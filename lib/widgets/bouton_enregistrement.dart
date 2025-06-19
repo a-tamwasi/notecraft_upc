@@ -18,12 +18,12 @@ class BoutonEnregistrement extends StatefulWidget {
   final bool estDesactive;
 
   const BoutonEnregistrement({
-    Key? key,
+    super.key,
     this.onDemarrer,
     this.onArreter,
     this.estEnregistrement = false,
     this.estDesactive = false,
-  }) : super(key: key);
+  });
 
   @override
   State<BoutonEnregistrement> createState() => _BoutonEnregistrementState();
