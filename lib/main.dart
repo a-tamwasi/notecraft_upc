@@ -10,6 +10,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await dotenv.load(fileName: ".env");
+  
+  // Diagnostic : vérifier le chargement des clés API
+  print('🔍 Diagnostic API Keys:');
+  print('   Deepgram API Key: ${dotenv.env['DEEPGRAM_API_KEY'] != null ? "✅ Chargée" : "❌ Manquante"}');
+  print('   OpenAI API Key: ${dotenv.env['OPENAI_API_KEY'] != null ? "✅ Chargée" : "❌ Manquante"}');
+  
   await initializeDateFormatting('fr_FR', null);
   
   runApp(

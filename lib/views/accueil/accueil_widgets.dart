@@ -2,7 +2,6 @@ import 'dart:ui'; // Importe les classes pour les effets de rendu comme le flou
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:notecraft_upc/views/abonnement/abonnement_page.dart';
-import 'package:notecraft_upc/views/accueil/accueil_page.dart';
 import 'package:notecraft_upc/views/historique/historique_page.dart';
 import 'package:notecraft_upc/views/transcription/transcription_page.dart';
 import '../parametres/parametres_page.dart';
@@ -20,7 +19,7 @@ class VueAccueil extends StatefulWidget {
 
 class _EtatVueAccueil extends State<VueAccueil> {
   /// Conserve l'index de l'onglet actuellement sélectionné.
-  /// `0` correspond à 'Accueil', `1` à 'Transcription', etc.
+  /// `0` correspond à 'Transcription', `1` à 'Historique', etc.
   int _indexSelectionne = 0;
 
   /// Une liste contenant les différentes pages (widgets) accessibles via la barre de navigation.
@@ -33,17 +32,11 @@ class _EtatVueAccueil extends State<VueAccueil> {
   void initState() {
     super.initState();
     _pages = <Widget>[
-      // Page 0: L'accueil
-      // On passe les fonctions de rappel pour permettre à la page d'accueil de changer d'onglet.
-      PageAccueil(
-        onNaviguerVersTranscription: () => _selectionnerOnglet(1),
-        onNaviguerVersAbonnement: () => _selectionnerOnglet(3),
-      ),
-      // Page 1: La transcription
+      // Page 0: La transcription (page principale)
       const PageTranscription(),
-      // Page 2: L'historique
+      // Page 1: L'historique
       const PageHistorique(),
-      // Page 3: L'abonnement
+      // Page 2: L'abonnement
       const PageAbonnement(),
     ];
 
@@ -161,7 +154,6 @@ class _EtatVueAccueil extends State<VueAccueil> {
             top: false, // On n'applique la zone de sécurité qu'en bas.
             child: BottomNavigationBar(
               items: const <BottomNavigationBarItem>[
-                BottomNavigationBarItem(icon: Icon(Iconsax.home_2), label: 'Accueil'),
                 BottomNavigationBarItem(icon: Icon(Iconsax.microphone_2), label: 'Transcription'),
                 BottomNavigationBarItem(icon: Icon(Iconsax.document_text_1), label: 'Historique'),
                 BottomNavigationBarItem(icon: Icon(Iconsax.crown_1), label: 'Abonnement'),

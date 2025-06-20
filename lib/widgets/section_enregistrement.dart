@@ -3,6 +3,7 @@ import '../src/constants/couleurs_application.dart';
 import '../src/constants/dimensions_application.dart';
 import '../src/constants/styles_texte.dart';
 import '../controllers/audio_recorder_controller.dart';
+import 'animation_transcription_lottie.dart';
 
 /// Widget pour afficher la section d'enregistrement audio
 /// 
@@ -34,7 +35,7 @@ class SectionEnregistrement extends StatelessWidget {
   final VoidCallback onImporterAudio;
 
   const SectionEnregistrement({
-    Key? key,
+    super.key,
     required this.estEnregistrement,
     required this.estEnPause,
     required this.estImportation,
@@ -43,7 +44,7 @@ class SectionEnregistrement extends StatelessWidget {
     required this.onToggleEnregistrement,
     required this.onArreterEnregistrement,
     required this.onImporterAudio,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -128,55 +129,61 @@ class SectionEnregistrement extends StatelessWidget {
     );
   }
 
-  /// Construit le chronomètre en temps réel
-  /// Utilise directement le ValueNotifier du contrôleur pour éviter les rebuilds inutiles
+  /// Construit le chronomètre ou l'animation selon l'état
+  /// Affiche l'animation pendant la transcription/importation, le chronomètre pendant l'enregistrement
   Widget _construireChronometre() {
-    return ValueListenableBuilder<int>(
-      valueListenable: audioRecorderController.secondesEcoulees,
-      builder: (context, secondes, child) {
-        return Text(
-          audioRecorderController.formatDuration(secondes),
-          style: StylesTexte.titrePrincipal.copyWith(
-            fontSize: 48,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[700],
-          ),
-        );
-      },
-    );
-  }
-
-  /// Construit les indicateurs d'état (transcription/importation en cours)
-  Widget _construireIndicateursEtat() {
+    // Si transcription en cours, afficher l'animation
     if (estTranscription) {
-      return _construireIndicateurTranscription();
-    } else if (estImportation) {
-      return _construireIndicateurImportation();
-    } else {
-      return _construireBoutonImport();
+      return const AnimationTranscriptionLottie(
+        texte: 'Transcription en cours...',
+        taille: 200,
+      );
     }
-  }
-
-  /// Construit l'indicateur de transcription en cours
-  Widget _construireIndicateurTranscription() {
-    return const Column(
-      children: [
-        CircularProgressIndicator(),
-        SizedBox(height: DimensionsApplication.paddingM),
-        Text('Transcription en cours...'),
-      ],
+    
+    // Si importation en cours, afficher l'animation
+    if (estImportation) {
+      return const AnimationTranscriptionLottie(
+        texte: 'Importation en cours...',
+        taille: 120,
+      );
+    }
+    
+    // Si enregistrement actif, afficher le chronomètre
+    if (estEnregistrement) {
+      return ValueListenableBuilder<int>(
+        valueListenable: audioRecorderController.secondesEcoulees,
+        builder: (context, secondes, child) {
+          return Text(
+            audioRecorderController.formatDuration(secondes),
+            style: StylesTexte.titrePrincipal.copyWith(
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
+            ),
+          );
+        },
+      );
+    }
+    
+    // État par défaut : chronomètre à 00:00
+    return Text(
+      '00:00',
+      style: StylesTexte.titrePrincipal.copyWith(
+        fontSize: 48,
+        fontWeight: FontWeight.bold,
+        color: Colors.grey[400],
+      ),
     );
   }
 
-  /// Construit l'indicateur d'importation en cours
-  Widget _construireIndicateurImportation() {
-    return const Column(
-      children: [
-        CircularProgressIndicator(),
-        SizedBox(height: DimensionsApplication.paddingM),
-        Text('Importation en cours...'),
-      ],
-    );
+  /// Construit les éléments d'interaction en bas (bouton import)
+  Widget _construireIndicateursEtat() {
+    // Si transcription ou importation en cours, ne pas afficher le bouton
+    if (estTranscription || estImportation) {
+      return const SizedBox.shrink();
+    }
+    
+    return _construireBoutonImport();
   }
 
   /// Construit le bouton d'importation de fichier audio

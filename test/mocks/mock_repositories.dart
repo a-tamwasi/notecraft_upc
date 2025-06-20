@@ -139,8 +139,10 @@ class MockAudioRepository implements AudioRepository {
 class MockTranscriptionRepository implements TranscriptionRepository {
   String mockTranscriptionResult = 'Transcription simulée par le mock';
   String mockTitleResult = 'Titre simulé';
+  String mockEnhancedResult = 'Transcription améliorée par le mock';
   bool shouldThrowTranscriptionError = false;
   bool shouldThrowTitleError = false;
+  bool shouldThrowEnhancementError = false;
   Duration transcriptionDelay = Duration.zero;
 
   @override
@@ -163,6 +165,15 @@ class MockTranscriptionRepository implements TranscriptionRepository {
     }
     
     return mockTitleResult;
+  }
+
+  @override
+  Future<String> enhanceTranscription(String rawText) async {
+    if (shouldThrowEnhancementError) {
+      throw Exception('Mock: Erreur d\'amélioration simulée');
+    }
+    
+    return mockEnhancedResult;
   }
 
   @override

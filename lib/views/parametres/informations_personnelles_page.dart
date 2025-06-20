@@ -22,7 +22,7 @@ class _InformationsPersonnellesPageState extends State<InformationsPersonnellesP
   
   // Données utilisateur (simulées)
   String _nomComplet = "Antonio Diaz";
-  String _email = "antonio.diaz@example.com";
+  final String _email = "antonio.diaz@example.com";
   
   // Contrôleur pour le dialog de modification
   final TextEditingController _controleurNom = TextEditingController();
