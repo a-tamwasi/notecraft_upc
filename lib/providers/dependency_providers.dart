@@ -6,17 +6,23 @@ import '../repositories/audio_repository.dart';
 import '../repositories/audio_recorder_repository_impl.dart';
 import '../controllers/audio_recorder_controller.dart';
 import '../services/openai_service.dart';
+import '../services/deepgram_service.dart';
+import '../services/hybrid_transcription_service.dart';
 import '../services/export_service.dart';
 import '../services/credit_service.dart';
 
-/// Provider pour le repository de transcription (OpenAI)
+/// Provider pour le repository de transcription (Hybride Deepgram + OpenAI)
+/// 
+/// Utilise Deepgram pour la transcription audio (plus rapide, sans limite de taille)
+/// et OpenAI pour la génération de titres (plus intelligent et contextuel)
 /// 
 /// TODO: Créer des tests d'intégration pour ce provider
-/// - Test avec mock d'OpenAIService
-/// - Test de gestion d'erreurs réseau
+/// - Test avec mock de HybridTranscriptionService
+/// - Test de fallback Deepgram → OpenAI en cas d'erreur
 /// - Test de transcription avec différents formats audio
+/// - Test de génération de titre avec différents types de contenu
 final transcriptionRepositoryProvider = Provider<TranscriptionRepository>((ref) {
-  return OpenAIService();
+  return HybridTranscriptionService();
 });
 
 /// Provider pour le repository d'export
@@ -65,7 +71,8 @@ final audioRecorderControllerProvider = Provider<AudioRecorderController>((ref) 
 /// - Sauvegarde des données persistantes
 final cleanupProvider = Provider<void>((ref) {
   ref.onDispose(() {
-    // Nettoyage des ressources globales
+    // Nettoyage des ressources globales pour tous les services
     OpenAIService.closeHttpClient();
+    DeepgramService.closeHttpClient();
   });
 }); 

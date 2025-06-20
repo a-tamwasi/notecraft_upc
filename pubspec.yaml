@@ -52,7 +52,7 @@ dependencies:
   audioplayers: ^6.4.0
   firebase_core: ^3.14.0
   flutter_riverpod: ^2.5.1
-
+  lottie: ^3.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

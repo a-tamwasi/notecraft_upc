@@ -41,6 +41,9 @@ class _PageHistoriqueState extends State<PageHistorique> {
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
 
+  // Nouvel état pour gérer l'affichage des versions dans les dialogues
+  final Map<int?, bool> _showEnhancedVersion = {};
+
   @override
   void initState() {
     super.initState();
@@ -95,8 +98,8 @@ class _PageHistoriqueState extends State<PageHistorique> {
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Supprimer'),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Supprimer'),
             ),
           ],
         );
@@ -653,17 +656,25 @@ Généré par NoteCraft App
       context: context,
       barrierDismissible: true,
       builder: (BuildContext context) {
-        // Utilise un widget dédié et stateful pour gérer l'édition
         return _TranscriptionDetailDialog(
           note: note,
-          onSave: (nouveauContenu) async {
-            final updatedNote = note.copy(contenu: nouveauContenu);
-            await DatabaseService.instance.update(updatedNote);
-            _refreshNotes(); // Rafraîchit la liste pour afficher les modifications
-          },
+          onUpdate: () => _refreshNotes(), // Rafraîchit la liste après modification
         );
       },
     );
+  }
+
+  /// Bascule entre la version brute et améliorée pour une note donnée
+  void _toggleVersionForNote(int? noteId) {
+    setState(() {
+      _showEnhancedVersion[noteId] = !(_showEnhancedVersion[noteId] ?? false);
+    });
+  }
+
+  /// Récupère le contenu à afficher selon le mode sélectionné
+  String _getDisplayContent(Note note) {
+    final showEnhanced = _showEnhancedVersion[note.id] ?? false;
+    return note.getContent(enhanced: showEnhanced);
   }
 }
 
@@ -671,9 +682,9 @@ Généré par NoteCraft App
 /// permettant l'édition du contenu.
 class _TranscriptionDetailDialog extends StatefulWidget {
   final Note note;
-  final Function(String) onSave;
+  final VoidCallback onUpdate;
 
-  const _TranscriptionDetailDialog({required this.note, required this.onSave});
+  const _TranscriptionDetailDialog({required this.note, required this.onUpdate});
 
   @override
   State<_TranscriptionDetailDialog> createState() => _TranscriptionDetailDialogState();
@@ -682,20 +693,44 @@ class _TranscriptionDetailDialog extends StatefulWidget {
 class _TranscriptionDetailDialogState extends State<_TranscriptionDetailDialog> {
   late final TextEditingController _textController;
   bool _isModified = false;
+  bool _showEnhanced = false; // État pour basculer entre les versions
 
   @override
   void initState() {
     super.initState();
+    // Initialiser avec la version brute par défaut
     _textController = TextEditingController(text: widget.note.contenu);
+    
     // Écoute les changements pour afficher ou masquer le bouton de sauvegarde
     _textController.addListener(() {
-      final hasChanged = _textController.text != widget.note.contenu;
+      final originalText = _showEnhanced ? (widget.note.contenuAmeliore ?? '') : widget.note.contenu;
+      final hasChanged = _textController.text != originalText;
       if (hasChanged != _isModified) {
         setState(() {
           _isModified = hasChanged;
         });
       }
     });
+  }
+
+  /// Bascule entre les versions et met à jour le contrôleur
+  void _toggleVersion() {
+    setState(() {
+      _showEnhanced = !_showEnhanced;
+      final newText = _showEnhanced ? (widget.note.contenuAmeliore ?? '') : widget.note.contenu;
+      _textController.text = newText;
+      _isModified = false; // Reset car on change de version
+    });
+  }
+
+  /// Sauvegarde la version actuellement affichée
+  Future<void> _saveCurrentVersion() async {
+    final updatedNote = _showEnhanced 
+      ? widget.note.copy(contenuAmeliore: _textController.text)
+      : widget.note.copy(contenu: _textController.text);
+    
+    await DatabaseService.instance.update(updatedNote);
+    widget.onUpdate(); // Notifier le parent pour rafraîchir
   }
 
   @override
@@ -707,23 +742,20 @@ class _TranscriptionDetailDialogState extends State<_TranscriptionDetailDialog> 
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      insetPadding: EdgeInsets.zero, // Supprime les marges pour occuper toute la largeur
+      insetPadding: EdgeInsets.zero,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero), // Pas de coins arrondis en plein écran
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       child: GestureDetector(
-        onTap: () {
-          // Ferme le clavier lorsqu'on clique en dehors des champs de texte
-          FocusScope.of(context).unfocus();
-        },
+        onTap: () => FocusScope.of(context).unfocus(),
         behavior: HitTestBehavior.opaque,
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(DimensionsApplication.paddingL),
             child: Column(
-              mainAxisSize: MainAxisSize.max, // Occupe toute la hauteur disponible
+              mainAxisSize: MainAxisSize.max,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- En-tête avec titre et bouton de fermeture ---
+                // En-tête avec titre et bouton de fermeture
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -743,7 +775,8 @@ class _TranscriptionDetailDialogState extends State<_TranscriptionDetailDialog> 
                   ],
                 ),
                 const SizedBox(height: DimensionsApplication.margeMoyenne),
-                // --- Métadonnées ---
+                
+                // Métadonnées
                 Row(
                   children: [
                     Icon(Iconsax.calendar_1, size: 14, color: Colors.grey.shade600),
@@ -770,8 +803,32 @@ class _TranscriptionDetailDialogState extends State<_TranscriptionDetailDialog> 
                     ),
                   ],
                 ),
+                
+                // Toggle pour basculer entre les versions (si version améliorée disponible)
+                if (widget.note.hasEnhancedVersion) ...[
+                  const SizedBox(height: DimensionsApplication.paddingM),
+                  Center(
+                    child: ToggleButtons(
+                      isSelected: [!_showEnhanced, _showEnhanced],
+                      onPressed: (index) => _toggleVersion(),
+                      borderRadius: BorderRadius.circular(DimensionsApplication.radiusM),
+                      children: const [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Text('Version brute'),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Text('Version améliorée ✨'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                
                 const Divider(height: DimensionsApplication.margeGrande),
-                // --- Contenu de la transcription (éditable) ---
+                
+                // Contenu de la transcription (éditable)
                 Flexible(
                   child: SingleChildScrollView(
                     child: TextFormField(
@@ -787,14 +844,15 @@ class _TranscriptionDetailDialogState extends State<_TranscriptionDetailDialog> 
                   ),
                 ),
                 const SizedBox(height: DimensionsApplication.margeMoyenne),
-                // --- Actions (bouton de sauvegarde conditionnel) ---
+                
+                // Actions (bouton de sauvegarde conditionnel)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     if (_isModified)
                       TextButton(
-                        onPressed: () {
-                          widget.onSave(_textController.text);
+                        onPressed: () async {
+                          await _saveCurrentVersion();
                           showSuccess(context, 'Modification sauvegardée !');
                           Navigator.of(context).pop();
                         },

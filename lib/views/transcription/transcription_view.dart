@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart' as audioplayer;
 import 'package:file_picker/file_picker.dart';
@@ -25,7 +24,7 @@ import 'package:intl/intl.dart';
 /// Vue principale pour la transcription audio
 /// Affiche l'interface utilisateur pour enregistrer ou importer des audios
 class TranscriptionView extends ConsumerStatefulWidget {
-  const TranscriptionView({Key? key}) : super(key: key);
+  const TranscriptionView({super.key});
 
   @override
   ConsumerState<TranscriptionView> createState() => _TranscriptionViewState();
@@ -68,15 +67,37 @@ class _TranscriptionViewState extends ConsumerState<TranscriptionView> {
     });
   }
 
-  // Scroll automatiquement vers la section de transcription
+  // Scroll automatiquement vers la section de transcription avec animation fluide
   void _scrollToTranscriptionSection() {
     if (_transcriptionSectionKey.currentContext != null) {
       Scrollable.ensureVisible(
         _transcriptionSectionKey.currentContext!,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
+        duration: const Duration(milliseconds: 800),
+        curve: Curves.easeInOutCubic,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+        alignment: 0.1, // Position proche du haut pour que le titre soit bien visible
       );
     }
+  }
+  
+  // Scroll adaptatif selon l'état du clavier
+  void _ensureContentVisibility() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      
+      final MediaQueryData mediaQuery = MediaQuery.of(context);
+      final double keyboardHeight = mediaQuery.viewInsets.bottom;
+      
+      if (keyboardHeight > 0 && _transcriptionSectionKey.currentContext != null) {
+        // Clavier ouvert : scroll pour s'assurer que le contenu est visible
+        Scrollable.ensureVisible(
+          _transcriptionSectionKey.currentContext!,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+        );
+      }
+    });
   }
 
   /// Vérifie si l'utilisateur a suffisamment de crédits avant action
@@ -134,12 +155,12 @@ class _TranscriptionViewState extends ConsumerState<TranscriptionView> {
     }
   }
 
-  /// Lance la transcription d'un fichier audio
+  /// Lance la transcription d'un fichier audio avec mode ultra-rapide
   Future<void> _transcribeAudio(String filePath, int audioDurationInSeconds) async {
     if (!_hasEnoughCredits()) return;
 
-    // Lancer la transcription via le provider
-    await ref.read(transcriptionProvider.notifier).transcribeAudio(filePath);
+    // Utiliser la transcription ultra-rapide pour améliorer la vitesse
+    await ref.read(transcriptionProvider.notifier).transcribeAudioFast(filePath);
     
     final transcriptionState = ref.read(transcriptionProvider);
     
@@ -153,8 +174,8 @@ class _TranscriptionViewState extends ConsumerState<TranscriptionView> {
         _scrollToTranscriptionSection();
       });
 
-      // Sauvegarder automatiquement la note
-      await _sauvegarderAutomatiquementLaNote(
+      // Sauvegarder automatiquement la note EN ARRIÈRE-PLAN pour ne pas bloquer l'UI
+      _sauvegarderAutomatiquementLaNote(
         titre: transcriptionState.generatedTitle ?? 'Transcription du ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
         transcription: transcriptionState.result!,
         dureeEnregistrement: audioDurationInSeconds,
@@ -246,21 +267,54 @@ class _TranscriptionViewState extends ConsumerState<TranscriptionView> {
       }
     });
 
-    // Écouter les changements de transcription pour mettre à jour le contrôleur
+    // Écouter les changements de transcription pour mettre à jour le contrôleur et déclencher le scroll
     ref.listen(transcriptionProvider, (previous, current) {
-      if (current.result != null && current.result != _transcriptionController.text) {
-        _transcriptionController.text = current.result!;
+      final newText = current.displayText;
+      if (newText != _transcriptionController.text) {
+        _transcriptionController.text = newText;
+      }
+      
+      // Scroll automatique quand la transcription devient disponible
+      if (previous != null && 
+          previous.isTranscribing && 
+          !current.isTranscribing && 
+          current.isComplete && 
+          current.result != null && 
+          current.result!.isNotEmpty) {
+        
+        // Délai court pour s'assurer que le widget de transcription est construit
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            _scrollToTranscriptionSection();
+          }
+        });
       }
     });
 
-    // Obtenir la hauteur de la BottomNavigationBar pour éviter le chevauchement
-    final bottomPadding = MediaQuery.of(context).viewInsets.bottom + 
-                         MediaQuery.of(context).padding.bottom + 
-                         kBottomNavigationBarHeight + 
-                         DimensionsApplication.paddingM;
+    // Gérer les changements de taille du clavier pour ajuster le scroll
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+      // Déclencher l'ajustement du scroll si le clavier est visible
+      if (keyboardHeight > 0) {
+        _ensureContentVisibility();
+      }
+    });
+
+    // Calculer les insets pour gérer le clavier et la BottomNavigationBar
+    final MediaQueryData mediaQuery = MediaQuery.of(context);
+    final double keyboardHeight = mediaQuery.viewInsets.bottom;
+    final double bottomSafeArea = mediaQuery.padding.bottom;
+    final double bottomNavBarHeight = kBottomNavigationBarHeight;
+    
+    // Padding qui assure que tout le contenu est visible même avec le clavier
+    final bottomPadding = keyboardHeight > 0 
+        ? keyboardHeight + DimensionsApplication.paddingL  // Avec clavier : espace au-dessus du clavier
+        : bottomSafeArea + bottomNavBarHeight + DimensionsApplication.paddingXL;  // Sans clavier : espace au-dessus de la bottom bar
 
     return Scaffold(
       backgroundColor: CouleursApplication.fondPrincipal,
+      // Éviter le redimensionnement automatique quand le clavier s'ouvre
+      resizeToAvoidBottomInset: true,
       body: GestureDetector(
         onTap: () {
           // Ferme le clavier lorsqu'on clique en dehors des champs de texte
@@ -268,17 +322,24 @@ class _TranscriptionViewState extends ConsumerState<TranscriptionView> {
         },
         behavior: HitTestBehavior.opaque,
         child: SafeArea(
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            padding: EdgeInsets.only(
-              left: DimensionsApplication.paddingM,
-              right: DimensionsApplication.paddingM,
-              top: DimensionsApplication.paddingM,
-              bottom: bottomPadding,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (ScrollNotification scrollInfo) {
+              // Permettre un overscroll pour voir le contenu caché sous la BottomNavigationBar
+              return false;
+            },
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              // Permettre le scroll au-delà du contenu pour révéler ce qui est caché
+              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+              padding: EdgeInsets.only(
+                left: DimensionsApplication.paddingM,
+                right: DimensionsApplication.paddingM,
+                top: DimensionsApplication.paddingM,
+                bottom: bottomPadding,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                 SectionRappelCredit(
                   creditSecondesRestantes: creditService.remainingCreditSeconds,
                   creditSecondesTotal: creditService.totalCreditSeconds,
@@ -296,16 +357,25 @@ class _TranscriptionViewState extends ConsumerState<TranscriptionView> {
                   onImporterAudio: _importAndUploadAudio,
                 ),
                 const SizedBox(height: DimensionsApplication.margeSection),
-                if (transcriptionState.result != null) 
-                  SectionTranscription(
-                    controleurTranscription: _transcriptionController,
-                    cle: _transcriptionSectionKey,
-                    onExporterPdf: () => _exporterPdf(context),
-                    onExporterTxt: () => _exporterTxt(context),
-                    onSauvegarder: _sauvegarderTranscription,
-                    onSupprimer: _confirmerSuppression,
+                if (transcriptionState.isComplete || _transcriptionController.text.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: DimensionsApplication.paddingS),
+                    child: SectionTranscription(
+                      cle: _transcriptionSectionKey,
+                      controleurTranscription: _transcriptionController,
+                      onExporterPdf: () => _exporterPdf(context),
+                      onExporterTxt: () => _exporterTxt(context),
+                      onSauvegarder: _sauvegarderTranscription,
+                      onSupprimer: _confirmerSuppression,
+                      onEnhanceTranscription: () => ref.read(transcriptionProvider.notifier).enhanceTranscription(),
+                      onToggleDisplayMode: () => ref.read(transcriptionProvider.notifier).toggleDisplayMode(),
+                      isEnhancing: transcriptionState.isEnhancing,
+                      hasEnhancedVersion: transcriptionState.enhancedResult != null,
+                      showEnhanced: transcriptionState.showEnhanced,
+                    ),
                   ),
-              ],
+                              ],
+              ),
             ),
           ),
         ),
@@ -315,8 +385,10 @@ class _TranscriptionViewState extends ConsumerState<TranscriptionView> {
 
   /// Sauvegarde la transcription modifiée
   void _sauvegarderTranscription() {
-    // Mettre à jour le provider avec le texte modifié
-    ref.read(transcriptionProvider.notifier).updateResult(_transcriptionController.text);
+    final currentText = _transcriptionController.text;
+    
+    // Mettre à jour le provider avec le texte modifié selon le mode actuel
+    ref.read(transcriptionProvider.notifier).updateResult(currentText);
     
     showSuccess(context, 'Transcription sauvegardée !');
   }
@@ -401,9 +473,12 @@ class _TranscriptionViewState extends ConsumerState<TranscriptionView> {
     required String cheminAudio,
   }) async {
     try {
+      final transcriptionState = ref.read(transcriptionProvider);
+      
       final nouvelleNote = Note(
         titre: titre,
         contenu: transcription,
+        contenuAmeliore: transcriptionState.enhancedResult, // Inclure la version améliorée si elle existe
         dateCreation: DateTime.now(),
         duree: dureeEnregistrement,
         cheminAudio: cheminAudio,

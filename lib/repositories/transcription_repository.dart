@@ -11,6 +11,9 @@ abstract class TranscriptionRepository {
   /// Retourne un titre court (5 mots maximum) ou lance une exception
   Future<String> generateTitle(String text);
   
+  /// Améliore une transcription brute en utilisant l'IA
+  Future<String> enhanceTranscription(String rawText);
+  
   /// Libère les ressources (fermeture de connexions HTTP, etc.)
   void dispose();
 } 

@@ -18,6 +18,7 @@ class NoteFields {
   static const String id = '_id'; // Common practice to use _id for primary keys
   static const String titre = 'titre';
   static const String contenu = 'contenu';
+  static const String contenuAmeliore = 'contenuAmeliore'; // Nouveau : version améliorée
   static const String dateCreation = 'dateCreation';
   static const String cheminAudio = 'cheminAudio';
   static const String langue = 'langue';
@@ -39,7 +40,7 @@ class DatabaseService {
   DatabaseService._internal();
 
   static Database? _database;
-  static const int _dbVersion = 3; // Version incrémentée pour la migration
+  static const int _dbVersion = 4; // Version incrémentée pour ajouter contenuAmeliore
   static const String _dbName = 'notecraft.db'; // The name of our database file.
 
   /// Getter for the database.
@@ -82,6 +83,7 @@ class DatabaseService {
         ${NoteFields.id} INTEGER PRIMARY KEY AUTOINCREMENT,
         ${NoteFields.titre} TEXT NOT NULL,
         ${NoteFields.contenu} TEXT NOT NULL,
+        ${NoteFields.contenuAmeliore} TEXT,
         ${NoteFields.dateCreation} TEXT NOT NULL,
         ${NoteFields.cheminAudio} TEXT NOT NULL,
         ${NoteFields.langue} TEXT NOT NULL,
@@ -150,6 +152,9 @@ class DatabaseService {
     if (oldVersion < 3) {
       await db.execute('ALTER TABLE ${DBTables.notes} ADD COLUMN ${NoteFields.duree} INTEGER NOT NULL DEFAULT 0');
     }
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE ${DBTables.notes} ADD COLUMN ${NoteFields.contenuAmeliore} TEXT');
+    }
   }
 
   // --- CRUD Operations for Notes ---
@@ -168,6 +173,7 @@ class DatabaseService {
         NoteFields.id,
         NoteFields.titre,
         NoteFields.contenu,
+        NoteFields.contenuAmeliore,
         NoteFields.dateCreation,
         NoteFields.cheminAudio,
         NoteFields.langue,

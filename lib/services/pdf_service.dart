@@ -75,23 +75,8 @@ class PdfService {
             
             pw.SizedBox(height: 15),
             
-            // Contenu de la transcription
-            pw.Container(
-              padding: const pw.EdgeInsets.all(16),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.grey300),
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-              ),
-              child: pw.Text(
-                transcription.isNotEmpty ? transcription : 'Aucune transcription disponible.',
-                style: pw.TextStyle(
-                  fontSize: 12,
-                  lineSpacing: 1.5,
-                  color: PdfColors.grey800,
-                ),
-                textAlign: pw.TextAlign.justify,
-              ),
-            ),
+            // Contenu de la transcription avec pagination automatique
+            ...(_buildTranscriptionContent(transcription)),
             
             pw.SizedBox(height: 30),
             
@@ -153,6 +138,73 @@ class PdfService {
     await file.writeAsBytes(pdfBytes);
 
     return filePath;
+  }
+
+  /// Construit le contenu de la transcription avec pagination automatique
+  static List<pw.Widget> _buildTranscriptionContent(String transcription) {
+    if (transcription.isEmpty) {
+      return [
+        pw.Container(
+          padding: const pw.EdgeInsets.all(16),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.grey50,
+            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+          ),
+          child: pw.Text(
+            'Aucune transcription disponible.',
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontStyle: pw.FontStyle.italic,
+              color: PdfColors.grey600,
+            ),
+          ),
+        ),
+      ];
+    }
+
+    // Diviser le texte en paragraphes pour une meilleure pagination
+    final paragraphs = transcription.split('\n\n').where((p) => p.trim().isNotEmpty).toList();
+    
+    List<pw.Widget> widgets = [];
+    
+    for (int i = 0; i < paragraphs.length; i++) {
+      final paragraph = paragraphs[i].trim();
+      
+      widgets.add(
+        pw.Paragraph(
+          text: paragraph,
+          style: pw.TextStyle(
+            fontSize: 12,
+            lineSpacing: 1.5,
+            color: PdfColors.grey800,
+          ),
+          textAlign: pw.TextAlign.justify,
+          margin: const pw.EdgeInsets.only(bottom: 12),
+        ),
+      );
+      
+      // Ajouter un espace entre les paragraphes
+      if (i < paragraphs.length - 1) {
+        widgets.add(pw.SizedBox(height: 8));
+      }
+    }
+    
+    // Si pas de paragraphes détectés, traiter comme un seul bloc
+    if (widgets.isEmpty) {
+      widgets.add(
+        pw.Paragraph(
+          text: transcription,
+          style: pw.TextStyle(
+            fontSize: 12,
+            lineSpacing: 1.5,
+            color: PdfColors.grey800,
+          ),
+          textAlign: pw.TextAlign.justify,
+        ),
+      );
+    }
+    
+    return widgets;
   }
 
   /// Formate une date en français

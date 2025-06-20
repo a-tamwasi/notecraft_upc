@@ -5,6 +5,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../repositories/transcription_repository.dart';
+import '../repositories/audio_transcription_repository.dart';
+import '../repositories/title_generation_repository.dart';
 
 /// Classe d'exception personnalisée pour les erreurs liées à l'API OpenAI.
 class OpenAIException implements Exception {
@@ -18,13 +20,17 @@ class OpenAIException implements Exception {
 /// Un service optimisé pour la communication avec l'API d'OpenAI.
 /// Inclut des optimisations pour réduire le temps de transcription.
 /// 
+/// IMPORTANT: Ce service implémente maintenant les deux interfaces séparées
+/// pour permettre une architecture hybride avec Deepgram pour la transcription
+/// et OpenAI pour la génération de titres.
+/// 
 /// TODO: Écrire des tests unitaires pour OpenAIService
 /// - Test de transcription avec fichier audio valide
 /// - Test de génération de titre avec texte valide
 /// - Test de gestion d'erreurs (clé API invalide, réseau indisponible)
 /// - Test de gestion des timeouts
 /// - Mock du client HTTP pour tests isolés
-class OpenAIService implements TranscriptionRepository {
+class OpenAIService implements TranscriptionRepository, AudioTranscriptionRepository, OpenAIRepository {
   /// L'endpoint de l'API Whisper pour les transcriptions.
   static const String _transcriptionUrl = 'https://api.openai.com/v1/audio/transcriptions';
   static const String _chatCompletionsUrl = 'https://api.openai.com/v1/chat/completions';
@@ -229,5 +235,74 @@ class OpenAIService implements TranscriptionRepository {
   /// Nettoie les ressources HTTP statiques
   static void closeHttpClient() {
     _client.close();
+  }
+
+  @override
+  Future<String> enhanceTranscription(String rawText) async {
+    final stopwatch = Stopwatch()..start();
+    print('🚀 Lancement de l\'amélioration de la transcription avec GPT-4o...');
+
+    try {
+      final apiKey = _getApiKey();
+      final uri = Uri.parse('https://api.openai.com/v1/chat/completions');
+
+      final prompt = """
+Tu es un expert en correction de transcription et en reformulation de discours oral.
+
+Voici une transcription brute d'un ou plusieurs fichiers audio, incluant parfois des erreurs de syntaxe, des phrases mal construites, des digressions ou des répétitions orales.
+
+Ton objectif est de :
+
+Corriger les erreurs de transcription sans ajouter d'informations non exprimées par l'orateur, même si le sens te semble implicite ;
+Améliorer la fluidité, la syntaxe et la logique du discours tout en respectant le style oral, spontané, parfois désordonné de l'intervenant ;
+Structurer le texte de manière claire sans lisser ou intellectualiser exagérément le ton original (conserve la vivacité, les ruptures, les interpellations, l'humour ou la rudesse éventuelle) ;
+Conserver les effets d'insistance ou les répétitions utiles, qui traduisent l'intention de l'orateur ou servent à marquer un point ;
+Respecter l'ordre et la progression naturelle du discours, même s'il est parfois non-linéaire ou peu académique ;
+Corriger logiquement toute incohérence ou contradiction interne, comme un changement de titre ou d'information exprimé plus tard dans le discours ;
+Éviter tout enrichissement stylistique non justifié (ne pas utiliser un vocabulaire ou des expressions qui ne correspondent pas au ton réel de l'intervenant) ;
+Ne pas supprimer les apartés ou digressions, sauf s'ils sont incompréhensibles ou incohérents.
+
+Voici le texte à corriger :
+
+$rawText
+
+Renvoie le texte corrigé uniquement, bien structuré, fidèle à l'orateur, sans explication ni commentaire.
+""";
+
+      final body = json.encode({
+        'model': 'gpt-4o',
+        'messages': [
+          {'role': 'user', 'content': prompt}
+        ],
+        'temperature': 0.2, // Faible température pour un résultat plus déterministe et fidèle
+      });
+
+      final response = await _client.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+        },
+        body: body,
+      ).timeout(const Duration(seconds: 120)); // Timeout de 2 minutes
+
+      stopwatch.stop();
+      print('⚡ Amélioration terminée en ${stopwatch.elapsed.inSeconds}s');
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(utf8.decode(response.bodyBytes));
+        return responseData['choices'][0]['message']['content'].trim();
+      } else {
+        final errorBody = json.decode(utf8.decode(response.bodyBytes));
+        throw OpenAIException('Erreur API OpenAI (${response.statusCode}): ${errorBody['error']['message']}');
+      }
+    } on TimeoutException {
+      throw OpenAIException('La requête a expiré après 120 secondes.');
+    } on SocketException {
+      throw OpenAIException('Erreur réseau. Vérifiez votre connexion internet.');
+    } catch (e) {
+      if (e is OpenAIException) rethrow;
+      throw OpenAIException('Erreur inattendue lors de l\'amélioration : $e');
+    }
   }
 } 

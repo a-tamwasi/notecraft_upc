@@ -19,11 +19,11 @@ class SectionRappelCredit extends StatelessWidget {
   final VoidCallback onAcheterCredits;
 
   const SectionRappelCredit({
-    Key? key,
+    super.key,
     required this.creditSecondesRestantes,
     required this.creditSecondesTotal,
     required this.onAcheterCredits,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

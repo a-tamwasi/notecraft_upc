@@ -10,11 +10,11 @@ class ChronometreEnregistrement extends StatelessWidget {
   final bool isPaused;
 
   const ChronometreEnregistrement({
-    Key? key,
+    super.key,
     required this.secondsElapsed,
     required this.isRecording,
     required this.isPaused,
-  }) : super(key: key);
+  });
 
   String _formatDuration(int seconds) {
     final minutes = seconds ~/ 60;
@@ -71,12 +71,12 @@ class BoutonEnregistrementPrincipal extends StatelessWidget {
   final VoidCallback onStopRecording;
 
   const BoutonEnregistrementPrincipal({
-    Key? key,
+    super.key,
     required this.isRecording,
     required this.isPaused,
     required this.onToggleRecording,
     required this.onStopRecording,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
