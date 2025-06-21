@@ -46,7 +46,7 @@ class HybridTranscriptionService implements TranscriptionRepository, TextEnhance
     print('🚀 Utilisation de Deepgram en mode ULTRA-RAPIDE...');
     try {
       if (_audioTranscriptionRepository is DeepgramService) {
-        final deepgram = _audioTranscriptionRepository as DeepgramService;
+        final deepgram = _audioTranscriptionRepository;
         return await deepgram.transcribeAudioFast(filePath);
       } else {
         // Fallback sur la méthode normale si ce n'est pas DeepgramService

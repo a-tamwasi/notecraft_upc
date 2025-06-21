@@ -142,7 +142,7 @@ class TranscriptionNotifier extends StateNotifier<TranscriptionState> {
       // Utiliser la méthode ultra-rapide si disponible
       late String transcriptionResult;
       if (_repository is HybridTranscriptionService) {
-        final hybrid = _repository as HybridTranscriptionService;
+        final hybrid = _repository;
         transcriptionResult = await hybrid.transcribeAudioFast(filePath);
       } else {
         // Fallback sur la méthode normale
