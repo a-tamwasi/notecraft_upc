@@ -7,6 +7,12 @@
     
     <!-- Permissions pour la lecture des fichiers audio (Android 13+) -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    
+    <!-- Permissions pour la lecture des images (Android 13+) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    
+    <!-- Permissions pour la caméra -->
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <!-- Permissions Bluetooth pour résoudre les conflits avec permission_handler -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />

@@ -1,5 +1,3 @@
-import '../repositories/audio_transcription_repository.dart';
-import '../repositories/title_generation_repository.dart';
 
 /// Interface abstraite pour les services de génération de titre uniquement
 /// Séparé de la transcription pour permettre l'utilisation de différents providers

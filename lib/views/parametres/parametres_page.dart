@@ -1,24 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../src/constants/couleurs_application.dart';
 import '../../src/constants/dimensions_application.dart';
 import '../../src/constants/styles_texte.dart';
 import '../../widgets/parametre_option_widget.dart';
+import '../../widgets/avatar_profil_widget.dart';
 import 'informations_personnelles_page.dart';
 import 'moyens_paiement_page.dart';
 import 'confidentialite_securite_page.dart';
 import 'support_page.dart';
 
-class VueParametres extends StatefulWidget {
+class VueParametres extends ConsumerStatefulWidget {
   const VueParametres({super.key});
 
   @override
-  State<VueParametres> createState() => _VueParametresState();
+  ConsumerState<VueParametres> createState() => _VueParametresState();
 }
 
-class _VueParametresState extends State<VueParametres> {
+class _VueParametresState extends ConsumerState<VueParametres> {
   // État de connexion de l'utilisateur
   // TODO: Remplacer par la vraie logique de vérification de connexion
   bool _estConnecte = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialiser l'image de profil au démarrage
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initialiserImageProfil();
+    });
+  }
+
+  /// Initialise l'image de profil si elle existe
+  Future<void> _initialiserImageProfil() async {
+    // TODO: Charger l'image de profil depuis la base de données ou les préférences
+    // Pour l'instant, on peut laisser vide ou utiliser une image par défaut
+    // final imageProvider = ref.read(imageProfilProvider.notifier);
+    // await imageProvider.chargerImageProfil(cheminImageExistante);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,15 +95,14 @@ class _VueParametresState extends State<VueParametres> {
       ),
       child: Column(
         children: [
-          // Avatar utilisateur
-          CircleAvatar(
-            radius: 65.0,
-            backgroundColor: CouleursApplication.primaire.shade100,
-            child: const Icon(
-              Icons.person, 
-              size: 65.0,
-              color: Color(0xFF666666),
-            ),
+          // Avatar utilisateur avec possibilité de modification
+          AvatarProfilWidget(
+            rayon: 65.0,
+            peutModifier: true,
+            surChangement: () {
+              // Rafraîchir l'interface si nécessaire
+              setState(() {});
+            },
           ),
           const SizedBox(height: DimensionsApplication.paddingM),
           

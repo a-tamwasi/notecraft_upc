@@ -84,6 +84,7 @@ class DeepgramService implements AudioTranscriptionRepository {
   }
 
   /// Transcrit un fichier audio en utilisant l'API REST Deepgram avec optimisations de vitesse.
+  @override
   Future<String> transcribeAudio(String filePath) async {
     // Utilisation du modèle "nova-2" qui est plus fiable pour les transcriptions complètes
     // et ajout de paramètres pour s'assurer d'avoir le texte complet
@@ -193,9 +194,9 @@ class DeepgramService implements AudioTranscriptionRepository {
         final metadata = results?['metadata'] as Map<String, dynamic>?;
         if (metadata != null) {
           final duration = metadata['duration'] as double?;
-          final channels_meta = metadata['channels'] as int?;
+          final channelsMeta = metadata['channels'] as int?;
           print('   - Durée détectée: ${duration?.toStringAsFixed(2)}s');
-          print('   - Canaux audio: $channels_meta');
+          print('   - Canaux audio: $channelsMeta');
         }
 
         // Prioriser la transcription formatée avec paragraphes pour un affichage propre
@@ -306,6 +307,7 @@ class DeepgramService implements AudioTranscriptionRepository {
   }
 
   /// Libère les ressources
+  @override
   void dispose() {
     // Les ressources statiques sont partagées, ne pas fermer ici
     // La fermeture se fait via closeHttpClient()
